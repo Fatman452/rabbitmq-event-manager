@@ -5,6 +5,7 @@ import { LOGGER } from '../../lib/logger';
 
 export function consume(channel: amqp.Channel, queueName: string, listener: ConsumeHandlerFunction, options: IEventManagerOptions): Promise<IEventPayload | void | null> {
   LOGGER.info(`Consume messages of queue  ${queueName}`);
+ 
   return new Promise((resolve, reject) => {
     try {
       channel.consume(queueName, message => {

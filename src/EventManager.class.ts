@@ -27,21 +27,32 @@ export class EventManager {
       LOGGER.debug(`Listening ${eventName} Event ...`);
       const channel = await adapter.createChannel(this.options.url);
       const queueName = `${this.options.application}::${eventName}`;
-      const exchangeName = await adapter.createExchange(channel, eventName, this.options.alternateExchangeName);
+      const exchangeName = await adapter.createExchange(channel, eventName, this.options.alternateExchangeName,
+        {
+          exchange_type: options && options.binding_key && options.binding_key !== ''? 'direct' : 'fanout',
+          autoDelete: false,
+          durable: true
+        });
 
       await adapter.createQueue(channel, queueName, exchangeName, {
         messageTtl: options ? options.ttl : this.options.ttl,
-        deadLetterExchange: options ? options.dlx : this.options.deadLetterExchangeName,
+        deadLetterExchange: options ? options.dlx ? options.dlx : this.options.deadLetterExchangeName : this.options.deadLetterExchangeName,
+        //deadLetterRoutingKey: options ? options.dlx_key ? options.dlx_key : this.options.deadLetterRoutingKey : this.options.deadLetterRoutingKey,
         arguments: {
+          'x-dead-letter-exchange': options ? options.dlx ? options.dlx : this.options.deadLetterExchangeName : this.options.deadLetterExchangeName, 
           'x-dead-letter-routing-key': queueName,
         },
-      });
+
+      },
+      /* Binding key */ options ? options.binding_key || '' : '');
+
       const newListener = (payload: IEventPayload): Promise<IEventPayload | void> => {
         return new Promise((resolve, reject) => {
           const listenerInstance = listener(payload);
           if (listenerInstance instanceof Promise) {
             listenerInstance
               .then(response => {
+
                 return this.emitResponseIfNeeded(payload, response as any);
               })
               .then(res => resolve(res))
@@ -60,13 +71,18 @@ export class EventManager {
       throw new EventManagerError(`Unable to listen event ${eventName}`, e);
     }
   }
-  public async emit(eventName: string, payload: IEventPayload): Promise<IEventPayload> {
+  public async emit(eventName: string, payload: IEventPayload, emitOptions?: any ): Promise<IEventPayload> {
     try {
+      let options = { durable: true, autoDelete: false, exchange_type: 'fanout' }
+      //replace default options
+      Object.assign(options, emitOptions? emitOptions : {});
+
       LOGGER.debug(`Emitting ${eventName} Message ...`);
+
       // we should create the metas information here
       payload = this.addMetasToPayload(payload, eventName);
       const channel = await adapter.createChannel(this.options.url);
-      await adapter.createExchange(channel, eventName, this.options.alternateExchangeName);
+      await adapter.createExchange(channel, eventName, this.options.alternateExchangeName, options);
       const returnedPayload = await adapter.publish(channel, eventName, payload, this.options);
       LOGGER.debug(`Message ${eventName} Emitted`);
       return returnedPayload;
@@ -83,14 +99,14 @@ export class EventManager {
       replyTo += `.${correlationId}`;
       const overrideMetas = payload._metas
         ? {
-            correlationId,
-            replyTo,
-            ...payload._metas,
-          }
+          correlationId,
+          replyTo,
+          ...payload._metas,
+        }
         : {
-            correlationId,
-            replyTo,
-          };
+          correlationId,
+          replyTo,
+        };
       const newPayload = {
         ...payload,
       };
@@ -100,7 +116,7 @@ export class EventManager {
         return new Promise(resolve => {
           this.on(replyTo, (responsePayload: IEventPayload) => {
             resolve(responsePayload);
-          });
+          }, {binding_key: payload._metas && payload._metas.binding_key ? payload._metas.binding_key : ''});
         });
       };
 
@@ -121,14 +137,17 @@ export class EventManager {
             await adapter.deleteExchange(channel, replyTo);
           });
         })
-        .catch(() => {
+        .catch((error) => {
           setImmediate(async () => {
-            await adapter.deleteQueue(channel, queueName);
-            await adapter.deleteExchange(channel, replyTo);
+            if (adapter && channel) {
+              if (queueName)
+                await adapter.deleteQueue(channel, queueName);
+              await adapter.deleteExchange(channel, replyTo);
+            }
           });
-          reject();
+          reject(error);
         });
-      const payloadEmitted = await this.emit(eventName, newPayload);
+      const payloadEmitted = await this.emit(eventName, newPayload, {autoDelete: false, durable: true, exchange_type: options && options.exchange_type? options.exchange_type : 'fanout'});
       LOGGER.info(`EmitAndWait : ${eventName}`, { payload: payloadEmitted });
     });
   }
@@ -191,7 +210,7 @@ export class EventManager {
         ...targetPayload,
       };
 
-      return this.emit(sourcePayload._metas.replyTo, newPayload);
+      return this.emit(sourcePayload._metas.replyTo, newPayload, {exchange_type: sourcePayload._metas && sourcePayload._metas.binding_key && sourcePayload._metas.binding_key !== ''? 'direct' : 'fanout'});
     }
   }
 }

@@ -57,7 +57,7 @@ export async function createExchange(
   channel: amqp.ConfirmChannel,
   name: string,
   alternateExchangeName: string | null = null,
-  options = { durable: true, autoDelete: false }
+  options = { durable: true, autoDelete: false, exchange_type: 'fanout' }
 ): Promise<string> {
   LOGGER.debug(`Create Exchange ${name}`);
   const exOptions: amqp.Options.AssertExchange = {
@@ -69,7 +69,7 @@ export async function createExchange(
     exOptions.alternateExchange = alternateExchangeName;
   }
 
-  await channel.assertExchange(name, 'fanout', exOptions);
+  await channel.assertExchange(name, options.exchange_type || 'fanout', exOptions);
   LOGGER.info(`Echange ${name} created`);
   return name;
 }
@@ -80,8 +80,8 @@ export function publish(channel: amqp.ConfirmChannel, exchangeName: string, payl
     const stringPayload = JSON.stringify(payload);
     channel.publish(
       exchangeName,
-      '',
-      new Buffer(stringPayload),
+      payload._metas && payload._metas.binding_key || '',
+      Buffer.from(stringPayload),
       {
         persistent: true,
         appId: options.application,
@@ -102,7 +102,7 @@ export function publish(channel: amqp.ConfirmChannel, exchangeName: string, payl
   });
 }
 
-export async function createQueue(channel: amqp.ConfirmChannel, queueName: string, exchangeName: string, options?: amqp.Options.AssertQueue): Promise<string> {
+export async function createQueue(channel: amqp.ConfirmChannel, queueName: string, exchangeName: string, options?: amqp.Options.AssertQueue,  binding_key?: string): Promise<string> {
   LOGGER.debug(`Create Queue ${queueName} binded to ${exchangeName}`);
   const qOptions: any = {
     durable: true,
@@ -111,7 +111,7 @@ export async function createQueue(channel: amqp.ConfirmChannel, queueName: strin
   };
 
   await channel.assertQueue(queueName, qOptions);
-  await channel.bindQueue(queueName, exchangeName, '');
+  await channel.bindQueue(queueName, exchangeName,  binding_key || '');
   await channel.prefetch(1);
   LOGGER.debug(`Queue ${queueName} binded to ${exchangeName} Created`);
   return queueName;

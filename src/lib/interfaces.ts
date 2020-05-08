@@ -5,6 +5,7 @@ export interface IEventPayloadMetas {
   timestamp: number;
   correlationId?: string;
   replyTo?: string;
+  binding_key?: string;
   [k: string]: any;
 }
 export interface IEventPayload {
@@ -16,6 +17,7 @@ export type EventHandlerFunction = (payload: IEventPayload) => Promise<IEventPay
 export type OverrideMetasFunction = (metas: IEventPayloadMetas) => IEventPayloadMetas;
 
 export interface IEventManagerOptions {
+  deadLetterRoutingKey?: string;
   url: string;
   application: string;
   metas: boolean | OverrideMetasFunction;
@@ -33,6 +35,7 @@ export interface IEventManagerOptions {
 }
 
 export interface IListenerOption {
+  dlx_key?: string;
   /**
    * The queue Time to live
    */
@@ -41,8 +44,14 @@ export interface IListenerOption {
    * Define another DeadLetterExhange (should have been defined prior usage)
    */
   dlx?: string;
+
+  /**
+   * Define binding key for queue-exchange binding. 
+   */
+  binding_key?: string;
 }
 
 export interface IEmitAndWaitOptions {
   emitAndWaitTimeout?: number;
+  exchange_type?: string;
 }

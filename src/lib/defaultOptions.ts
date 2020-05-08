@@ -7,6 +7,7 @@ export const defaultOptions: IEventManagerOptions = {
   alternateExchangeName: 'NO_QUEUE_EXCHANGE',
   alternateQueueName: 'QUEUE_NO_QUEUE',
   deadLetterExchangeName: 'DEAD_LETTER_EXCHANGE',
+  deadLetterRoutingKey: 'DEAD_LETTER_ROUTING_KEY',
   deadLetterQueueName: 'DEAD_LETTER_QUEUE',
   ttl: 1000 * 60 * 60 * 24, // 24 hours,
   maxNumberOfMessagesRetries: 10,
