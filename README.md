@@ -1,3 +1,20 @@
+#VERSION 2.0.0
+
+This version support multiple exchange types (fanout, direct, topic)
+
+For use this you should specify an option as following:
+
+for on method:
+pass {binding_key:'value'} this automatically set exchange type to direct.
+
+for emit and emitAndWait method:
+pass {exchange_type: 'direct'}
+
+this object should be passed as the third parameter. 
+
+There are other fix it, we will make a pull request later, we upload this package to continue working on our company. 
+
+
 # RabbitMQ Event Manager
 
 [![Build Status](https://travis-ci.org/mimiz/rabbitmq-event-manager.svg?branch=master)](https://travis-ci.org/mimiz/rabbitmq-event-manager) [![Maintainability](https://api.codeclimate.com/v1/badges/bfd3cd4f2f47356c09f6/maintainability)](https://codeclimate.com/github/mimiz/rabbitmq-event-manager/maintainability) [![Test Coverage](https://api.codeclimate.com/v1/badges/bfd3cd4f2f47356c09f6/test_coverage)](https://codeclimate.com/github/mimiz/rabbitmq-event-manager/test_coverage)
